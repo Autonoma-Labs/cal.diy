@@ -234,6 +234,7 @@ const innerHandler = createHandler({
   scopeField: "organizationId",
   sharedSecret,
   signingSecret,
+  allowProduction: process.env.VERCEL_ENV === "preview",
   auth: async (user: Record<string, unknown> | null, _context: unknown) => {
     if (user?.id) {
       return { headers: { "x-cal-user-id": String(user.id) } };
