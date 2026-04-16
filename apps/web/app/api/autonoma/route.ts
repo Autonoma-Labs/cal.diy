@@ -206,12 +206,18 @@ function normalizeDiscoverTypes(body: Record<string, unknown>): Record<string, u
 // this, we strip `role` from Membership records before handing the payload to
 // the SDK, then backfill the enum value via a direct UPDATE after creation.
 
-function extractMembershipRoles(body: Record<string, unknown>): {
+interface PendingUserPassword {
+  userRef: string;
+  hash: string;
+}
+
+function extractRecipeWorkarounds(body: Record<string, unknown>): {
   body: Record<string, unknown>;
   roles: string[];
+  passwords: PendingUserPassword[];
 } {
   const create = body.create as Record<string, unknown[]> | undefined;
-  if (!create) return { body, roles: [] };
+  if (!create) return { body, roles: [], passwords: [] };
 
   const roles: string[] = [];
   const memberships = create.Membership as Array<Record<string, unknown>> | undefined;
@@ -223,7 +229,38 @@ function extractMembershipRoles(body: Record<string, unknown>): {
       }
     }
   }
-  return { body, roles };
+
+  const passwords: PendingUserPassword[] = [];
+  const userPasswords = create.UserPassword as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(userPasswords)) {
+    for (const up of userPasswords) {
+      const ref = up.userId as { _ref: string } | undefined;
+      if (ref && typeof ref === "object" && "_ref" in ref && typeof up.hash === "string") {
+        passwords.push({ userRef: ref._ref, hash: up.hash });
+      }
+    }
+    delete create.UserPassword;
+  }
+
+  return { body, roles, passwords };
+}
+
+async function insertUserPasswords(
+  passwords: PendingUserPassword[],
+  refs: Record<string, Record<string, unknown>[]>
+): Promise<void> {
+  if (passwords.length === 0) return;
+  const userRefs = refs.Users ?? [];
+  for (let i = 0; i < passwords.length && i < userRefs.length; i++) {
+    const userId = userRefs[i]?.id;
+    if (typeof userId === "number") {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO "UserPassword" ("userId", "hash") VALUES ($1, $2) ON CONFLICT ("userId") DO UPDATE SET "hash" = $2`,
+        userId,
+        passwords[i].hash
+      );
+    }
+  }
 }
 
 const sharedSecret = process.env.AUTONOMA_SHARED_SECRET ?? "";
@@ -254,9 +291,11 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   let finalRawBody = rawBody;
+  let pendingPasswords: PendingUserPassword[] = [];
   if (parsedBody && parsedBody.action === "up" && parsedBody.create) {
-    const result = extractMembershipRoles(parsedBody);
+    const result = extractRecipeWorkarounds(parsedBody);
     pendingMembershipRoles = result.roles;
+    pendingPasswords = result.passwords;
     finalRawBody = JSON.stringify(result.body);
   }
 
@@ -279,6 +318,14 @@ export async function POST(request: Request): Promise<Response> {
   if (contentType.includes("application/json")) {
     try {
       const body = await response.json();
+
+      if (response.ok && pendingPasswords.length > 0 && body.refs) {
+        await insertUserPasswords(
+          pendingPasswords,
+          body.refs as Record<string, Record<string, unknown>[]>
+        );
+      }
+
       if (body && typeof body === "object" && "schema" in body) {
         const normalized = normalizeDiscoverTypes(body as Record<string, unknown>);
         return new Response(JSON.stringify(normalized), {
