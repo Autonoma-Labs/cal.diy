@@ -6,7 +6,7 @@ import { createHmac } from "node:crypto";
 import process from "node:process";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error — moduleResolution incompatibility with package exports
-import { createHandler } from "@autonoma-ai/server-web";
+import { handleRequest } from "@autonoma-ai/sdk";
 import { prisma } from "@calcom/prisma";
 
 interface SQLExecutor {
@@ -229,70 +229,53 @@ function extractMembershipRoles(body: Record<string, unknown>): {
 const sharedSecret = process.env.AUTONOMA_SHARED_SECRET ?? "";
 const signingSecret = process.env.AUTONOMA_SIGNING_SECRET ?? "";
 
-const innerHandler = createHandler({
+const handlerConfig = {
   executor: calPrismaExecutor(),
   scopeField: "organizationId",
   sharedSecret,
   signingSecret,
   allowProduction: process.env.VERCEL_ENV === "preview",
+  sdk: { server: "web" },
   auth: async (user: Record<string, unknown> | null, _context: unknown) => {
     if (user?.id) {
       return { headers: { "x-cal-user-id": String(user.id) } };
     }
     return { headers: {} };
   },
-});
+};
 
 export async function POST(request: Request): Promise<Response> {
   const rawBody = await request.text();
+  const headers: Record<string, string> = {};
+  request.headers.forEach((value, key) => {
+    headers[key.toLowerCase()] = value;
+  });
 
+  let finalBody = rawBody;
   let parsedBody: Record<string, unknown> | null = null;
   try {
     parsedBody = JSON.parse(rawBody);
   } catch {
-    // pass through to handler
+    // pass through
   }
 
-  let finalRawBody = rawBody;
   if (parsedBody && parsedBody.action === "up" && parsedBody.create) {
     const result = extractMembershipRoles(parsedBody);
     pendingMembershipRoles = result.roles;
-    finalRawBody = JSON.stringify(result.body);
+    finalBody = JSON.stringify(result.body);
+    headers["x-signature"] = createHmac("sha256", sharedSecret).update(finalBody).digest("hex");
   }
 
-  const newHeaders = new Headers(request.headers);
-  if (finalRawBody !== rawBody) {
-    const sig = createHmac("sha256", sharedSecret).update(finalRawBody).digest("hex");
-    newHeaders.set("x-signature", sig);
-  }
-
-  const newRequest = new Request(request.url, {
-    method: request.method,
-    headers: newHeaders,
-    body: finalRawBody,
-  });
-
-  const response = await innerHandler(newRequest);
+  const res = await handleRequest(handlerConfig, { body: finalBody, headers });
   pendingMembershipRoles = [];
-  const contentType = response.headers.get("content-type") || "";
 
-  if (contentType.includes("application/json")) {
-    try {
-      const body = await response.json();
-      if (body && typeof body === "object" && "schema" in body) {
-        const normalized = normalizeDiscoverTypes(body as Record<string, unknown>);
-        return new Response(JSON.stringify(normalized), {
-          status: response.status,
-          headers: response.headers,
-        });
-      }
-      return new Response(JSON.stringify(body), {
-        status: response.status,
-        headers: response.headers,
-      });
-    } catch {
-      return response;
-    }
+  let responseBody = res.body as Record<string, unknown>;
+  if (responseBody && typeof responseBody === "object" && "schema" in responseBody) {
+    responseBody = normalizeDiscoverTypes(responseBody);
   }
-  return response;
+
+  return new Response(JSON.stringify(responseBody), {
+    status: res.status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
