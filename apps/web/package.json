@@ -31,6 +31,9 @@
     "yarn": "3.4.1"
   },
   "dependencies": {
+    "@autonoma-ai/sdk": "^0.1.13",
+    "@autonoma-ai/sdk-prisma": "^0.1.13",
+    "@autonoma-ai/server-web": "^0.1.13",
     "@boxyhq/saml-jackson": "1.52.2",
     "@calcom/app-store": "workspace:*",
     "@calcom/app-store-cli": "workspace:*",

@@ -332,6 +332,36 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@autonoma-ai/sdk-prisma@npm:^0.1.13":
+  version: 0.1.13
+  resolution: "@autonoma-ai/sdk-prisma@npm:0.1.13"
+  dependencies:
+    "@autonoma-ai/sdk": "npm:0.1.13"
+  peerDependencies:
+    "@prisma/client": ">=5.0.0"
+  peerDependenciesMeta:
+    "@prisma/client":
+      optional: false
+  checksum: 10/aeccf46ff30569f05f0f60c8c71f637c10677a40c842fb7e8851f99fb9320fb702eb0bcd3a4645a0b3c6be6aab6f48f6088892ce4d2486924f92b4f4f6f7f056
+  languageName: node
+  linkType: hard
+
+"@autonoma-ai/sdk@npm:0.1.13, @autonoma-ai/sdk@npm:^0.1.13":
+  version: 0.1.13
+  resolution: "@autonoma-ai/sdk@npm:0.1.13"
+  checksum: 10/8ab22c57fc0712394b761ea5de7bb2653b17b9d6c304da3828e1d671e453ac3b5ec8626a585072b152e61276557f9f1b93e9244c95b359a24e8181b1a19c2c1a
+  languageName: node
+  linkType: hard
+
+"@autonoma-ai/server-web@npm:^0.1.13":
+  version: 0.1.13
+  resolution: "@autonoma-ai/server-web@npm:0.1.13"
+  dependencies:
+    "@autonoma-ai/sdk": "npm:0.1.13"
+  checksum: 10/0cadee9b8ba2654bcbd4f83bd1b7cbc1b0336d0d454971ac9c998af81ee373cda029bc0e3d8caa1dc335cc89bce60f08f97c419304b693bd842caadb4db1847a
+  languageName: node
+  linkType: hard
+
 "@aws-crypto/sha256-browser@npm:5.2.0":
   version: 5.2.0
   resolution: "@aws-crypto/sha256-browser@npm:5.2.0"
@@ -3275,6 +3305,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@calcom/web@workspace:apps/web"
   dependencies:
+    "@autonoma-ai/sdk": "npm:^0.1.13"
+    "@autonoma-ai/sdk-prisma": "npm:^0.1.13"
+    "@autonoma-ai/server-web": "npm:^0.1.13"
     "@babel/core": "npm:7.26.10"
     "@biomejs/biome": "npm:2.3.10"
     "@boxyhq/saml-jackson": "npm:1.52.2"
