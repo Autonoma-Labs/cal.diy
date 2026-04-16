@@ -4,9 +4,13 @@
 
 import { createHmac } from "node:crypto";
 import process from "node:process";
-import type { SQLExecutor } from "@autonoma-ai/sdk";
 import { createHandler } from "@autonoma-ai/server-web";
 import { prisma } from "@calcom/prisma";
+
+interface SQLExecutor {
+  query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
+  transaction<T>(fn: (tx: SQLExecutor) => Promise<T>): Promise<T>;
+}
 
 // Prisma's $queryRawUnsafe cannot deserialize PostgreSQL's `name` type returned
 // by information_schema views and pg_type/pg_enum catalog views. This wrapper
