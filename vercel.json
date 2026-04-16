@@ -1,0 +1,18 @@
+{
+  "buildCommand": "turbo run build --filter=@calcom/web...",
+  "devCommand": "turbo run dev --filter=@calcom/web",
+  "installCommand": "yarn install",
+  "framework": "nextjs",
+  "outputDirectory": "apps/web/.next",
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
+  "github": {
+    "enabled": true,
+    "autoAlias": true,
+    "silent": false,
+    "autoJobCancelation": true
+  }
+}
