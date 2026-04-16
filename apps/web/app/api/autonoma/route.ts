@@ -4,6 +4,8 @@
 
 import { createHmac } from "node:crypto";
 import process from "node:process";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error — moduleResolution incompatibility with package exports
 import { createHandler } from "@autonoma-ai/server-web";
 import { prisma } from "@calcom/prisma";
 
