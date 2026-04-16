@@ -154,7 +154,7 @@ function calPrismaExecutor(): SQLExecutor {
               patched = fixed.sql;
               return txClient.$queryRawUnsafe<U[]>(patched, ...fixed.params);
             },
-            transaction: (innerFn: (tx: SQLExecutor) => Promise<unknown>) => innerFn(txExecutor),
+            transaction: <T2>(innerFn: (tx: SQLExecutor) => Promise<T2>): Promise<T2> => innerFn(txExecutor),
           };
           return fn(txExecutor);
         },
