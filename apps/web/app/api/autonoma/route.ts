@@ -749,10 +749,15 @@ export const POST = createHandler({
     // creation path (createAProfileForAnExistingUser) references TeamRepository
     // which isn't importable at type-check time in this branch; scenarios do
     // not exercise org-move redirects, so we never reach this factory.
-    TempOrgRedirect: notImplementedFactory(
-      "TempOrgRedirect",
-      "audited creation path references TeamRepository which is not exported at type-check time",
-    ),
+    TempOrgRedirect: defineFactory({
+      create: async () => {
+        throwNotImplemented(
+          "TempOrgRedirect",
+          "audited creation path (createAProfileForAnExistingUser) references TeamRepository which is not exported at type-check time",
+        );
+        return { id: undefined };
+      },
+    }),
 
     // audit.creation_function: TaskRepository.create — takes a typed
     // TaskTypes enum; no scenario exercises tasker seeding.
