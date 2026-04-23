@@ -1,10 +1,9 @@
-import { DEFAULT_SCHEDULE, getAvailabilityFromSchedule } from "@calcom/lib/availability";
 import { prisma } from "@calcom/prisma";
-import type { Prisma } from "@calcom/prisma/client";
 
 import { TRPCError } from "@trpc/server";
 
 import type { TrpcSessionUser } from "../../../../types";
+import { createSchedule } from "./create";
 import type { TCreateInputSchema } from "./create.schema";
 
 type CreateOptions = {
@@ -34,44 +33,13 @@ export const createHandler = async ({ input, ctx }: CreateOptions) => {
       });
     }
   }
-  const data: Prisma.ScheduleCreateInput = {
-    name: input.name,
-    user: {
-      connect: {
-        id: user.id,
-      },
-    },
-    // If an eventTypeId is provided then connect the new schedule to that event type
-    ...(input.eventTypeId && { eventType: { connect: { id: input.eventTypeId } } }),
-  };
 
-  const availability = getAvailabilityFromSchedule(input.schedule || DEFAULT_SCHEDULE);
-  data.availability = {
-    createMany: {
-      data: availability.map((schedule) => ({
-        days: schedule.days,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime,
-      })),
-    },
-  };
-
-  data.timeZone = user.timeZone;
-
-  const schedule = await prisma.schedule.create({
-    data,
+  const schedule = await createSchedule({
+    userId: user.id,
+    userTimeZone: user.timeZone,
+    userDefaultScheduleId: user.defaultScheduleId,
+    input,
   });
-
-  if (!user.defaultScheduleId) {
-    await prisma.user.update({
-      where: {
-        id: user.id,
-      },
-      data: {
-        defaultScheduleId: schedule.id,
-      },
-    });
-  }
 
   return { schedule };
 };

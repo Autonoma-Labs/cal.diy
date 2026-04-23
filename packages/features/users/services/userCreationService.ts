@@ -32,7 +32,7 @@ const log = logger.getSubLogger({ prefix: ["[userCreationService]"] });
 
 export class UserCreationService {
   static async createUser({ data }: { data: CreateUserInput }) {
-    const { email, password, username } = data;
+    const { email, password, username, ...rest } = data;
 
     const shouldLockByDefault = await checkIfEmailIsBlockedInWatchlistController({
       email,
@@ -43,8 +43,14 @@ export class UserCreationService {
     const hashedPassword = password ? await hashPassword(password) : null;
 
     const userRepo = new UserRepository(prisma);
+    // Omit raw `password` from the spread — UserRepository.create expects
+    // `hashedPassword` and the repository writes the nested UserPassword via
+    // `password: { create: { hash } }`. Leaking the plaintext string through
+    // `...data` makes Prisma reject the call with "Expected
+    // UserPasswordCreateNestedOneWithoutUserInput, provided String".
     const user = await userRepo.create({
-      ...data,
+      ...rest,
+      email,
       username: slugify(username),
       ...(hashedPassword && { hashedPassword }),
       organizationId: data?.organizationId ?? null,
