@@ -19,7 +19,7 @@
     "test": "jest ./tests",
     "build": "npx rimraf dist && tsc --build --force tsconfig.json",
     "build:watch": "tsc --build --force ./tsconfig.json --watch",
-    "post-install": "yarn build"
+    "post-install": "tsc --build --force ../types/tsconfig.json && yarn build"
   },
   "dependencies": {
     "@calcom/platform-constants": "workspace:*"
