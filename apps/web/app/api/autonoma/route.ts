@@ -195,10 +195,10 @@ const rewriteIntrospectionSql = (sql: string): string => {
       !/table_constraints/i.test(trimmed)) {
     return SAFE_POSTGRES_COLUMNS(schema);
   }
-  if (/table_constraints\s+tc\b.*PRIMARY KEY/is.test(trimmed)) {
+  if (/table_constraints\s+tc\b[\s\S]*PRIMARY KEY/i.test(trimmed)) {
     return SAFE_POSTGRES_PRIMARY_KEYS(schema);
   }
-  if (/table_constraints\s+tc\b.*FOREIGN KEY/is.test(trimmed)) {
+  if (/table_constraints\s+tc\b[\s\S]*FOREIGN KEY/i.test(trimmed)) {
     return SAFE_POSTGRES_FOREIGN_KEYS(schema);
   }
   if (/FROM\s+pg_type\b/i.test(trimmed) && /pg_enum/i.test(trimmed)) {
