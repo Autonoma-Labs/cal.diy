@@ -50,7 +50,6 @@ import { HolidayRepository } from "@calcom/features/holidays/repositories/Holida
 import { MembershipRepository } from "@calcom/features/membership/repositories/MembershipRepository";
 import { AccessCodeRepository } from "@calcom/features/oauth/repositories/AccessCodeRepository";
 import { OAuthClientRepository } from "@calcom/features/oauth/repositories/OAuthClientRepository";
-import { createAProfileForAnExistingUser } from "@calcom/features/profile/lib/createAProfileForAnExistingUser";
 import { ProfileRepository } from "@calcom/features/profile/repositories/ProfileRepository";
 import { SelectedCalendarRepository } from "@calcom/features/selectedCalendar/repositories/SelectedCalendarRepository";
 import { UserCreationService } from "@calcom/features/users/services/userCreationService";
@@ -746,26 +745,14 @@ export const POST = createHandler({
       },
     }),
 
-    // audit.creation_function: createAProfileForAnExistingUser
-    TempOrgRedirect: defineFactory({
-      create: async (data) => {
-        await createAProfileForAnExistingUser({
-          user: {
-            id: data.userId as number,
-            currentUsername: (data.fromUsername as string | null | undefined) ?? null,
-            email: data.email as string,
-          },
-          organizationId: data.organizationId as number,
-        });
-        // createAProfileForAnExistingUser writes TempOrgRedirect inline
-        // but does not return it; fetch the most-recent row so down() can
-        // remove it by id.
-        const row = await db.tempOrgRedirect.findFirstOrThrow({
-          orderBy: { id: "desc" },
-        });
-        return asRef(row);
-      },
-    }),
+    // TempOrgRedirect: registered as a NotImplemented stub. The audited
+    // creation path (createAProfileForAnExistingUser) references TeamRepository
+    // which isn't importable at type-check time in this branch; scenarios do
+    // not exercise org-move redirects, so we never reach this factory.
+    TempOrgRedirect: notImplementedFactory(
+      "TempOrgRedirect",
+      "audited creation path references TeamRepository which is not exported at type-check time",
+    ),
 
     // audit.creation_function: TaskRepository.create — takes a typed
     // TaskTypes enum; no scenario exercises tasker seeding.
