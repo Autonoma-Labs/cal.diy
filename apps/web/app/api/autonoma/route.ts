@@ -12,12 +12,6 @@
  */
 export const dynamic = "force-dynamic";
 
-type NextRouteContext = Parameters<
-  typeof import("./handler").POST
->[1] extends infer C
-  ? C
-  : never;
-
 let handlerPromise: Promise<typeof import("./handler")> | undefined;
 
 const loadHandler = async () => {
@@ -27,7 +21,10 @@ const loadHandler = async () => {
   return handlerPromise;
 };
 
-export async function POST(request: Request, context: NextRouteContext) {
+export async function POST(request: Request) {
   const { POST: impl } = await loadHandler();
-  return impl(request, context);
+  // createHandler's POST signature is (req) => Response
+  return (impl as unknown as (req: Request) => Promise<Response> | Response)(
+    request,
+  );
 }
