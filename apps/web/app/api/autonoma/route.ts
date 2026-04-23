@@ -1,14 +1,10 @@
 /**
  * Autonoma Environment Factory route.
  *
- * Thin dispatcher — the 1000-line handler with its full repository /
- * service import graph lives in ./handler.ts. We defer loading it until
- * the first real request so Next.js's build-time page-data collector
- * never evaluates the heavy import tree. That matters because the
- * collector loads every route module for metadata extraction, and
- * evaluating the full Cal.com server-side graph there has historically
- * tripped "TypeError: (void 0) is not a function" under Turbopack when
- * an intermediate module's ESM shape is not yet resolved.
+ * Thin dispatcher with an error envelope — the 1000-line handler lives in
+ * ./handler.ts and is only loaded on first request. The envelope turns
+ * otherwise-invisible module-load errors into a readable JSON response so
+ * diagnosis does not require Vercel runtime log access.
  */
 export const dynamic = "force-dynamic";
 
@@ -22,9 +18,21 @@ const loadHandler = async () => {
 };
 
 export async function POST(request: Request) {
-  const { POST: impl } = await loadHandler();
-  // createHandler's POST signature is (req) => Response
-  return (impl as unknown as (req: Request) => Promise<Response> | Response)(
-    request,
-  );
+  try {
+    const { POST: impl } = await loadHandler();
+    return (impl as unknown as (req: Request) => Promise<Response> | Response)(
+      request,
+    );
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    return new Response(
+      JSON.stringify({
+        error: "autonoma handler failed to load or execute",
+        name: err.name,
+        message: err.message,
+        stack: err.stack?.split("\n").slice(0, 20),
+      }),
+      { status: 500, headers: { "content-type": "application/json" } },
+    );
+  }
 }
