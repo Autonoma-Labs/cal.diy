@@ -529,9 +529,9 @@
       "outputs": ["lint-results"]
     },
     "post-install": {
-      "dependsOn": [],
-      "outputs": ["../../node_modules/@prisma/client/**", "../../node_modules/@prisma/admin-client/**"],
-      "inputs": ["./schema.prisma", "./prisma/schema.prisma"],
+      "dependsOn": ["^post-install"],
+      "outputs": ["../../node_modules/@prisma/client/**", "../../node_modules/@prisma/admin-client/**", "dist/**"],
+      "inputs": ["./schema.prisma", "./prisma/schema.prisma", "./**/*.ts", "!./dist/**"],
       "env": ["PRISMA_GENERATE_DATAPROXY"]
     },
     "@calcom/prisma#post-install": {
