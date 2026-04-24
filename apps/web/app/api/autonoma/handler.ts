@@ -231,7 +231,24 @@ const rewriteIntrospectionSql = (sql: string): string => {
 const introspectionSafeExecutor: typeof baseExecutor = {
   query: (sql: string, params?: unknown[]) =>
     baseExecutor.query(rewriteIntrospectionSql(sql), params),
-  transaction: baseExecutor.transaction.bind(baseExecutor),
+  // Override the default 5s $transaction timeout. The 'large' scenario
+  // writes 150 bookings under one User in a single transaction, which
+  // regularly exceeds Prisma's default and crashes with
+  // "Transaction API error: A query cannot be executed on an expired
+  // transaction". Give interactive transactions 60s of headroom.
+  transaction: async (fn) =>
+    db.$transaction(
+      async (txClient) => {
+        const txExecutor: typeof baseExecutor = {
+          async query(sql: string, params?: unknown[]) {
+            return txClient.$queryRawUnsafe(sql, ...(params ?? []));
+          },
+          transaction: (innerFn) => innerFn(txExecutor),
+        };
+        return fn(txExecutor);
+      },
+      { maxWait: 30_000, timeout: 60_000 },
+    ),
 };
 
 /**
