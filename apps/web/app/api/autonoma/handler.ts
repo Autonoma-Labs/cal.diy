@@ -284,10 +284,46 @@ export const POST = createHandler({
     // audit.creation_function: UserCreationService.createUser
     User: defineFactory({
       create: async (data) => {
+        const email = data.email as string;
+        const username = data.username as string;
+
+        // Tolerate orphan test users left behind by a prior failed teardown
+        // or an Autonoma retry with the same testRunId. The SDK does not
+        // pass prior refs into a repeat up(), so without this sweep the
+        // factory would crash with "Unique constraint failed on the fields:
+        // (`email`)". Only sweep records matching our test-data naming
+        // convention (@cal.diy.test) to avoid ever touching a real user.
+        const isTestEmail = email.endsWith("@cal.diy.test");
+        if (isTestEmail) {
+          const orphan = await db.user.findFirst({
+            where: { OR: [{ email }, { username }] },
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              bookings: { select: { id: true }, take: 1 },
+            },
+          });
+          if (orphan) {
+            // Defensive: refuse to delete if the orphan looks non-test.
+            // Both the email AND username must fit our test pattern.
+            const looksLikeTestUser =
+              orphan.email?.endsWith("@cal.diy.test") === true &&
+              orphan.username?.startsWith("host-") === true;
+            if (!looksLikeTestUser) {
+              throw new Error(
+                `Autonoma User factory refused to sweep orphan id=${orphan.id} — ` +
+                  "record does not look like test data",
+              );
+            }
+            await db.user.delete({ where: { id: orphan.id } });
+          }
+        }
+
         const user = await UserCreationService.createUser({
           data: {
-            email: data.email as string,
-            username: data.username as string,
+            email,
+            username,
             name: (data.name as string | null | undefined) ?? null,
             password: (data.password as string | undefined) ?? undefined,
             timeZone: (data.timeZone as string | undefined) ?? "UTC",
