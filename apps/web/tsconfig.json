@@ -11,10 +11,7 @@
       "@prisma/client/*": ["@calcom/prisma/client/*"],
       "@calcom/testing/*": ["../../packages/testing/src/*"],
       "@calcom/repository/*": ["@calcom/lib/server/repository/*"],
-      "@coss/ui/*": ["../../packages/coss-ui/src/*"],
-      "@autonoma-ai/sdk": ["../../node_modules/@autonoma-ai/sdk/dist/index.d.ts"],
-      "@autonoma-ai/sdk-prisma": ["../../node_modules/@autonoma-ai/sdk-prisma/dist/index.d.ts"],
-      "@autonoma-ai/server-web": ["../../node_modules/@autonoma-ai/server-web/dist/index.d.ts"]
+      "@coss/ui/*": ["../../packages/coss-ui/src/*"]
     },
     "plugins": [
       {
