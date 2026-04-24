@@ -227,6 +227,10 @@ export const POST = createHandler({
   tableNameMap: TABLE_NAME_MAP,
   sharedSecret: process.env.AUTONOMA_SHARED_SECRET ?? "",
   signingSecret: process.env.AUTONOMA_SIGNING_SECRET ?? "",
+  // Vercel sets NODE_ENV=production on all deployments including preview.
+  // Gate real production opt-in behind AUTONOMA_ENABLED=true, which is set
+  // only on preview envs scoped to Autonoma-enabled branches.
+  allowProduction: process.env.AUTONOMA_ENABLED === "true",
   factories: {
     // ------------------------------------------------------------
     // Tier A — scenario-critical factories. Each calls the real
