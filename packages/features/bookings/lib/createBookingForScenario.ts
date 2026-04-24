@@ -39,7 +39,7 @@ export type CreateBookingForScenarioAttendee = {
 
 export type CreateBookingForScenarioInput = {
   userId: number;
-  eventTypeId: number;
+  eventTypeId?: number | null;
   title: string;
   startTime: Date;
   endTime: Date;
@@ -64,12 +64,17 @@ export async function createBookingForScenario(
   if (!Number.isFinite(input.userId) || input.userId <= 0) {
     throw new ErrorWithCode(ErrorCode.RequestBodyInvalid, "createBookingForScenario: userId is required");
   }
-  if (!Number.isFinite(input.eventTypeId) || input.eventTypeId <= 0) {
-    throw new ErrorWithCode(
-      ErrorCode.RequestBodyInvalid,
-      "createBookingForScenario: eventTypeId is required",
-    );
-  }
+  // eventTypeId is optional: the Autonoma SDK defers unresolved `_ref`
+  // fields until all aliases exist. If the scenario tree omits the
+  // referenced EventType, the SDK either never resolves the booking's
+  // FK (leaves it null) or patches it via a post-insert UPDATE. Either
+  // way, the Booking.eventTypeId column is nullable, so accept missing
+  // values here rather than hard-failing on incomplete trees.
+  const hasEventTypeId =
+    input.eventTypeId !== undefined &&
+    input.eventTypeId !== null &&
+    Number.isFinite(input.eventTypeId) &&
+    input.eventTypeId > 0;
   if (!(input.startTime instanceof Date) || !(input.endTime instanceof Date)) {
     throw new ErrorWithCode(
       ErrorCode.RequestBodyInvalid,
@@ -97,7 +102,9 @@ export async function createBookingForScenario(
       smsReminderNumber: input.smsReminderNumber ?? null,
       responses: input.responses ?? undefined,
       metadata: input.metadata ?? undefined,
-      eventType: { connect: { id: input.eventTypeId } },
+      ...(hasEventTypeId
+        ? { eventType: { connect: { id: input.eventTypeId as number } } }
+        : {}),
       user: { connect: { id: input.userId } },
       ...(input.attendees && input.attendees.length > 0
         ? {

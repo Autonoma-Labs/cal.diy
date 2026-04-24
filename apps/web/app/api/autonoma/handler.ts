@@ -446,7 +446,10 @@ export const POST = createHandler({
           }));
         const booking = await createBookingForScenario({
           userId: toInt(data.userId, "data.userId"),
-          eventTypeId: toInt(data.eventTypeId, "data.eventTypeId"),
+          // eventTypeId is optional — the SDK may pass it as a deferred _ref
+          // that resolves post-insert, or may omit it entirely for scenario
+          // trees that don't seed event types. Booking.eventTypeId is nullable.
+          eventTypeId: toIntOrUndefined(data.eventTypeId, "data.eventTypeId"),
           title: (data.title as string | undefined) ?? "Scenario Booking",
           startTime,
           endTime,
