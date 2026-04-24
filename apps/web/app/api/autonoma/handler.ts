@@ -84,6 +84,33 @@ const asRef = (value: Record<string, unknown> | { id: unknown }) => {
 };
 
 /**
+ * Coerce a scope-injected FK value back to a number.
+ *
+ * The SDK auto-injects the parent's scopeField value into child rows
+ * when the child doesn't already declare it (see `detectScopeValue` in
+ * @autonoma-ai/sdk). Our User factory returns `userId` as a *string*
+ * so teardown's DELETE queries (`WHERE userId = $1`) round-trip through
+ * Postgres without crashing on integer-type coercion. As a side effect,
+ * every Cal.com factory that reads `data.userId` (or similar FK) now
+ * receives a string and must coerce before passing to Cal.com services
+ * that expect numbers.
+ */
+const toInt = (value: unknown): number => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  throw new Error(
+    `Autonoma handler: expected integer, got ${typeof value} ${JSON.stringify(value)}`,
+  );
+};
+const toIntOrUndefined = (value: unknown): number | undefined => {
+  if (value === undefined || value === null) return undefined;
+  return toInt(value);
+};
+
+/**
  * Shared stub body — used inline by every Tier C factory so the Autonoma
  * fidelity validator sees a literal `defineFactory({` at each registration
  * site while the throw message is still uniform.
@@ -249,8 +276,8 @@ export const POST = createHandler({
             timeZone: (data.timeZone as string | undefined) ?? "UTC",
             locale: (data.locale as string | undefined) ?? "en",
             weekStart: (data.weekStart as string | undefined) ?? "Sunday",
-            timeFormat: (data.timeFormat as number | undefined) ?? 12,
-            organizationId: (data.organizationId as number | null | undefined) ?? null,
+            timeFormat: toIntOrUndefined(data.timeFormat) ?? 12,
+            organizationId: toIntOrUndefined(data.organizationId) ?? null,
             creationSource:
               (data.creationSource as CreationSource | undefined) ?? CreationSource.WEBAPP,
             emailVerified:
@@ -294,7 +321,7 @@ export const POST = createHandler({
     // availability.schedule.create handler — see extracted_to in audit).
     Schedule: defineFactory({
       create: async (data) => {
-        const userId = data.userId as number;
+        const userId = toInt(data.userId);
         const rawUser = await db.user.findUniqueOrThrow({
           where: { id: userId },
           select: { id: true, timeZone: true, defaultScheduleId: true },
@@ -319,16 +346,16 @@ export const POST = createHandler({
         const eventType = await repo.create({
           title: data.title as string,
           slug: data.slug as string,
-          length: (data.length as number | undefined) ?? 30,
+          length: toIntOrUndefined(data.length) ?? 30,
           description: (data.description as string | null | undefined) ?? null,
           hidden: (data.hidden as boolean | undefined) ?? false,
           requiresConfirmation: (data.requiresConfirmation as boolean | undefined) ?? false,
           schedulingType: (data.schedulingType as never) ?? undefined,
-          userId: data.userId as number,
-          teamId: (data.teamId as number | undefined) ?? undefined,
-          scheduleId: (data.scheduleId as number | undefined) ?? undefined,
-          profileId: (data.profileId as number | undefined) ?? undefined,
-          parentId: (data.parentId as number | undefined) ?? undefined,
+          userId: toInt(data.userId),
+          teamId: toIntOrUndefined(data.teamId),
+          scheduleId: toIntOrUndefined(data.scheduleId),
+          profileId: toIntOrUndefined(data.profileId),
+          parentId: toIntOrUndefined(data.parentId),
         });
         return asRef(eventType);
       },
@@ -365,8 +392,8 @@ export const POST = createHandler({
             phoneNumber: (a.phoneNumber as string | null | undefined) ?? null,
           }));
         const booking = await createBookingForScenario({
-          userId: data.userId as number,
-          eventTypeId: data.eventTypeId as number,
+          userId: toInt(data.userId),
+          eventTypeId: toInt(data.eventTypeId),
           title: (data.title as string | undefined) ?? "Scenario Booking",
           startTime,
           endTime,
@@ -384,7 +411,7 @@ export const POST = createHandler({
     // audit.creation_function: BookingReferenceRepository.replaceBookingReferences
     BookingReference: defineFactory({
       create: async (data) => {
-        const bookingId = data.bookingId as number;
+        const bookingId = toInt(data.bookingId);
         const type = data.type as string;
         await BookingReferenceRepository.replaceBookingReferences({
           bookingId,
@@ -396,7 +423,7 @@ export const POST = createHandler({
               meetingPassword: (data.meetingPassword as string | undefined) ?? null,
               meetingUrl: (data.meetingUrl as string | undefined) ?? null,
               externalCalendarId: (data.externalCalendarId as string | undefined) ?? null,
-              credentialId: (data.credentialId as number | undefined) ?? null,
+              credentialId: toIntOrUndefined(data.credentialId) ?? null,
               delegationCredentialId: (data.delegationCredentialId as string | undefined) ?? null,
             },
           ],
@@ -433,8 +460,8 @@ export const POST = createHandler({
       create: async (data) => {
         const profile = await ProfileRepository.upsert({
           create: {
-            userId: data.userId as number,
-            organizationId: data.organizationId as number,
+            userId: toInt(data.userId),
+            organizationId: toInt(data.organizationId),
             username: (data.username as string | null | undefined) ?? null,
             email: data.email as string,
           },
@@ -443,8 +470,8 @@ export const POST = createHandler({
             email: data.email as string,
           },
           updateWhere: {
-            userId: data.userId as number,
-            organizationId: data.organizationId as number,
+            userId: toInt(data.userId),
+            organizationId: toInt(data.organizationId),
           },
         });
         return asRef(profile);
@@ -455,8 +482,8 @@ export const POST = createHandler({
     Membership: defineFactory({
       create: async (data) => {
         const row = await MembershipRepository.create({
-          userId: data.userId as number,
-          teamId: data.teamId as number,
+          userId: toInt(data.userId),
+          teamId: toInt(data.teamId),
           role: data.role as never,
           accepted: (data.accepted as boolean | undefined) ?? true,
         });
@@ -470,7 +497,7 @@ export const POST = createHandler({
         const cred = await CredentialRepository.create({
           type: data.type as string,
           key: (data.key as object) ?? {},
-          userId: data.userId as number,
+          userId: toInt(data.userId),
           appId: (data.appId as string | undefined) ?? "",
         });
         return asRef(cred as never);
@@ -484,12 +511,12 @@ export const POST = createHandler({
           integration: data.integration as string,
           externalId: data.externalId as string,
           primaryEmail: (data.primaryEmail as string | undefined) ?? null,
-          ...(data.userId ? { user: { connect: { id: data.userId as number } } } : {}),
+          ...(data.userId ? { user: { connect: { id: toInt(data.userId) } } } : {}),
           ...(data.eventTypeId
-            ? { eventType: { connect: { id: data.eventTypeId as number } } }
+            ? { eventType: { connect: { id: toInt(data.eventTypeId) } } }
             : {}),
           ...(data.credentialId
-            ? { credential: { connect: { id: data.credentialId as number } } }
+            ? { credential: { connect: { id: toInt(data.credentialId) } } }
             : {}),
         });
         return asRef(row);
@@ -500,11 +527,11 @@ export const POST = createHandler({
     SelectedCalendar: defineFactory({
       create: async (data) => {
         const row = await SelectedCalendarRepository.create({
-          userId: data.userId as number,
+          userId: toInt(data.userId),
           integration: data.integration as string,
           externalId: data.externalId as string,
-          credentialId: (data.credentialId as number | undefined) ?? null,
-          eventTypeId: (data.eventTypeId as number | undefined) ?? null,
+          credentialId: toIntOrUndefined(data.credentialId) ?? null,
+          eventTypeId: toIntOrUndefined(data.eventTypeId) ?? null,
         });
         return asRef(row);
       },
@@ -514,10 +541,10 @@ export const POST = createHandler({
     HashedLink: defineFactory({
       create: async (data, ctx: FactoryContext) => {
         const repo = new HashedLinkRepository(db);
-        const row = await repo.createLink(data.eventTypeId as number, {
+        const row = await repo.createLink(toInt(data.eventTypeId), {
           link: (data.link as string | undefined) ?? `link-${ctx.testRunId}-${Date.now()}`,
           expiresAt: (data.expiresAt as Date | null | undefined) ?? null,
-          maxUsageCount: (data.maxUsageCount as number | null | undefined) ?? null,
+          maxUsageCount: toIntOrUndefined(data.maxUsageCount) ?? null,
         });
         return asRef(row);
       },
@@ -528,9 +555,9 @@ export const POST = createHandler({
       create: async (data) => {
         const repo = new PrismaBookingReportRepository(db);
         const row = await repo.createReport({
-          bookingId: data.bookingId as number,
-          reporterId: data.reporterId as number,
-          teamId: (data.teamId as number | undefined) ?? null,
+          bookingId: toInt(data.bookingId),
+          reporterId: toInt(data.reporterId),
+          teamId: toIntOrUndefined(data.teamId) ?? null,
           reason: data.reason as never,
           status: (data.status as never) ?? undefined,
         } as never);
@@ -544,8 +571,8 @@ export const POST = createHandler({
         const repo = new WrongAssignmentReportRepository(db);
         const row = await repo.createReport({
           bookingUid: data.bookingUid as string,
-          reporterId: data.reporterId as number,
-          teamId: (data.teamId as number | undefined) ?? null,
+          reporterId: toInt(data.reporterId),
+          teamId: toIntOrUndefined(data.teamId) ?? null,
           reason: (data.reason as string | undefined) ?? "",
         } as never);
         return asRef(row);
@@ -557,7 +584,7 @@ export const POST = createHandler({
       create: async (data) => {
         const repo = new AssignmentReasonRepository(db);
         const row = await repo.createAssignmentReason({
-          bookingId: data.bookingId as number,
+          bookingId: toInt(data.bookingId),
           reasonEnum: data.reasonEnum as never,
           reasonString: (data.reasonString as string | undefined) ?? "",
         });
@@ -624,9 +651,9 @@ export const POST = createHandler({
     CreditBalance: defineFactory({
       create: async (data) => {
         const row = await CreditsRepository.createCreditBalance({
-          userId: (data.userId as number | undefined) ?? undefined,
-          teamId: (data.teamId as number | undefined) ?? undefined,
-          additionalCredits: (data.additionalCredits as number | undefined) ?? 0,
+          userId: toIntOrUndefined(data.userId),
+          teamId: toIntOrUndefined(data.teamId),
+          additionalCredits: toIntOrUndefined(data.additionalCredits) ?? 0,
           limitReachedAt: (data.limitReachedAt as Date | null | undefined) ?? null,
           warningSentAt: (data.warningSentAt as Date | null | undefined) ?? null,
         });
@@ -638,7 +665,7 @@ export const POST = createHandler({
     CreditPurchaseLog: defineFactory({
       create: async (data) => {
         const row = await CreditsRepository.createCreditPurchaseLog({
-          credits: data.credits as number,
+          credits: toInt(data.credits),
           creditBalanceId: data.creditBalanceId as string,
         });
         return asRef(row);
@@ -650,13 +677,13 @@ export const POST = createHandler({
       create: async (data) => {
         const row = await CreditsRepository.createCreditExpenseLog({
           creditBalanceId: data.creditBalanceId as string,
-          credits: data.credits as number,
+          credits: toInt(data.credits),
           creditType: data.creditType as never,
           date: (data.date as Date | undefined) ?? new Date(),
           bookingUid: (data.bookingUid as string | undefined) ?? null,
           externalRef: (data.externalRef as string | undefined) ?? null,
           smsSid: (data.smsSid as string | undefined) ?? null,
-          smsSegments: (data.smsSegments as number | undefined) ?? null,
+          smsSegments: toIntOrUndefined(data.smsSegments) ?? null,
         });
         return asRef(row);
       },
@@ -673,7 +700,7 @@ export const POST = createHandler({
           logo: (data.logo as string | undefined) ?? undefined,
           websiteUrl: (data.websiteUrl as string | undefined) ?? undefined,
           enablePkce: (data.enablePkce as boolean | undefined) ?? false,
-          userId: (data.userId as number | undefined) ?? undefined,
+          userId: toIntOrUndefined(data.userId),
           status:
             (data.status as "PENDING" | "APPROVED" | "REJECTED" | undefined) ?? "APPROVED",
         });
@@ -688,7 +715,7 @@ export const POST = createHandler({
         await repo.create({
           code: data.code as string,
           clientId: data.clientId as string,
-          userId: data.userId as number,
+          userId: toInt(data.userId),
           scopes: (data.scopes as never) ?? [],
         });
         const row = await db.accessCode.findFirstOrThrow({
@@ -737,7 +764,7 @@ export const POST = createHandler({
     Avatar: defineFactory({
       create: async (data) => {
         const row = await uploadAvatar({
-          userId: data.userId as number,
+          userId: toInt(data.userId),
           avatar: data.avatar as string,
         });
         return asRef({ id: row, userId: data.userId });
@@ -804,8 +831,8 @@ export const POST = createHandler({
         const repo = new EventTypeTranslationRepository(db);
         await repo.upsertManyTitleTranslations([
           {
-            eventTypeId: data.eventTypeId as number,
-            userId: data.userId as number,
+            eventTypeId: toInt(data.eventTypeId),
+            userId: toInt(data.userId),
             sourceLocale: data.sourceLocale as never,
             targetLocale: data.targetLocale as never,
             translatedText: data.translatedText as string,
@@ -813,7 +840,7 @@ export const POST = createHandler({
         ]);
         const row = await db.eventTypeTranslation.findFirstOrThrow({
           where: {
-            eventTypeId: data.eventTypeId as number,
+            eventTypeId: toInt(data.eventTypeId),
             targetLocale: data.targetLocale as never,
           },
         });
@@ -825,7 +852,7 @@ export const POST = createHandler({
     UserHolidaySettings: defineFactory({
       create: async (data) => {
         const row = await HolidayRepository.upsertUserSettings({
-          userId: data.userId as number,
+          userId: toInt(data.userId),
           countryCode: data.countryCode as string,
           disabledIds: (data.disabledIds as string[] | undefined) ?? [],
         });
@@ -841,7 +868,7 @@ export const POST = createHandler({
             countryCode: data.countryCode as string,
             calendarId: data.calendarId as string,
             eventId: data.eventId as string,
-            year: data.year as number,
+            year: toInt(data.year),
             name: data.name as string,
             date:
               data.date instanceof Date
@@ -878,7 +905,7 @@ export const POST = createHandler({
     CalVideoSettings: defineFactory({
       create: async (data) => {
         const row = await CalVideoSettingsRepository.createCalVideoSettings({
-          eventTypeId: data.eventTypeId as number,
+          eventTypeId: toInt(data.eventTypeId),
           calVideoSettings: {
             disableRecordingForGuests:
               (data.disableRecordingForGuests as boolean | null | undefined) ?? null,
