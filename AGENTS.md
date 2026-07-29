@@ -234,6 +234,20 @@ For complex features, you can use spec-driven development when explicitly reques
 
 See [SPEC-WORKFLOW.md](SPEC-WORKFLOW.md) for the full workflow documentation.
 
+## Autonoma test data
+
+Autonoma runs end-to-end tests against a preview deployment of this app. Before each
+run it calls `POST /api/autonoma` to seed an isolated set of test data, and calls it
+again afterwards to delete it. That endpoint (`apps/web/app/api/autonoma/route.ts`)
+registers one **factory** per Prisma model in `apps/web/lib/autonoma/factories/`, and
+each factory creates its row through the app's own repository or service - the same
+code production uses - so the seeded data carries real validation, hashing and
+derived fields rather than raw inserts.
+
+When you add a model to `packages/prisma/schema.prisma`, or change the code that
+creates an existing one, add or update the matching factory in the same PR.
+A stale factory silently breaks every E2E run that depends on that data.
+
 ## Extended Documentation
 
 For detailed information, see the `agents/` directory:
