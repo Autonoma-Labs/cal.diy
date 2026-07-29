@@ -668,7 +668,8 @@ export const OAuthClient = defineFactory({
 
 /**
  * `AccessCodeRepository.create` owns the 10-minute expiry and returns void, so
- * the row is read back through the repository's own finder to get its id.
+ * the row is read back to get its id. The repository's own `findValidCode` does
+ * not select `id`, hence the direct read here.
  */
 export const AccessCode = defineFactory({
   inputSchema: z.object({
@@ -687,7 +688,10 @@ export const AccessCode = defineFactory({
       userId: data.userId ?? undefined,
       teamId: data.teamId ?? undefined,
     });
-    const created = await repository.findValidCode(data.code, data.clientId);
+    const created = await prisma.accessCode.findFirst({
+      where: { code: data.code, clientId: data.clientId },
+      select: { id: true },
+    });
     if (!created) throw new Error(`AccessCode ${data.code} was not persisted`);
     return { id: created.id };
   },

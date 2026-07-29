@@ -23,7 +23,7 @@ import {
   WatchlistType,
 } from "@calcom/prisma/enums";
 import { z } from "zod";
-import { safeDelete, toJsonValue } from "../helpers";
+import { safeDelete, toJsonValue, toJsonValueReadShape } from "../helpers";
 
 /**
  * `createBooking()` in handleNewBooking is not callable standalone - it wants a
@@ -453,7 +453,8 @@ export const BookingAudit = defineFactory({
     timestamp: z.coerce.date(),
     operationId: z.string(),
     data: z.record(z.string(), z.unknown()).nullish(),
-    context: z.record(z.string(), z.unknown()).nullish(),
+    // BookingAuditContext is a closed shape, not free-form JSON like `data`.
+    context: z.object({ impersonatedBy: z.string().optional() }).nullish(),
   }),
   create: async (data) => {
     const repository = new PrismaBookingAuditRepository({ prismaClient: prisma });
@@ -465,8 +466,8 @@ export const BookingAudit = defineFactory({
       source: data.source,
       timestamp: data.timestamp,
       operationId: data.operationId,
-      data: data.data ? toJsonValue(data.data) : undefined,
-      context: data.context ? toJsonValue(data.context) : undefined,
+      data: toJsonValueReadShape(data.data),
+      context: data.context ?? undefined,
     });
     return { id: audit.id };
   },
@@ -479,7 +480,8 @@ export const BookingReport = defineFactory({
     bookingUid: z.string(),
     bookerEmail: z.string(),
     reason: z.nativeEnum(BookingReportReason),
-    reportedById: z.number().nullish(),
+    // A report is always attributed to a reporter - the column is non-null.
+    reportedById: z.number(),
     organizationId: z.number().nullish(),
     description: z.string().nullish(),
     cancelled: z.boolean().optional(),
@@ -490,7 +492,7 @@ export const BookingReport = defineFactory({
       bookingUid: data.bookingUid,
       bookerEmail: data.bookerEmail,
       reason: data.reason,
-      reportedById: data.reportedById ?? undefined,
+      reportedById: data.reportedById,
       organizationId: data.organizationId ?? undefined,
       description: data.description ?? undefined,
       cancelled: data.cancelled ?? false,
@@ -563,7 +565,8 @@ export const WatchlistAudit = defineFactory({
     action: z.nativeEnum(WatchlistAction).optional(),
     description: z.string().nullish(),
     changedByUserId: z.number().nullish(),
-    watchlistId: z.string().nullish(),
+    // An audit row always belongs to a Watchlist entry - the FK is non-null.
+    watchlistId: z.string(),
   }),
   create: async (data) => {
     const repository = new PrismaWatchlistAuditRepository(prisma);
@@ -573,7 +576,7 @@ export const WatchlistAudit = defineFactory({
       action: data.action ?? WatchlistAction.REPORT,
       description: data.description ?? null,
       changedByUserId: data.changedByUserId ?? null,
-      watchlistId: data.watchlistId ?? null,
+      watchlistId: data.watchlistId,
     });
     return { id: audit.id };
   },

@@ -36,3 +36,12 @@ export function timeOnly(hhmm: string): Date {
 export function toJsonValue(value: unknown): Prisma.InputJsonValue {
   return (value ?? {}) as Prisma.InputJsonValue;
 }
+
+/**
+ * `BookingAuditCreateInput.data` is typed with the read-side `JsonValue` instead
+ * of Prisma's write-side `InputJsonValue`, and the two are not assignable to one
+ * another. Writes through that repository need this variant.
+ */
+export function toJsonValueReadShape(value: unknown): Prisma.JsonValue {
+  return (value ?? null) as Prisma.JsonValue;
+}

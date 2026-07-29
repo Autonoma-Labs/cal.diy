@@ -332,6 +332,42 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@autonoma-ai/sdk@npm:0.2.9":
+  version: 0.2.9
+  resolution: "@autonoma-ai/sdk@npm:0.2.9"
+  peerDependencies:
+    zod: ^3.23.0 || ^4.0.0
+  checksum: 10/051a8d6071d188559f4c1e36700d5b2ebad2889c96585c835cb56d121df07fc1459c63303b7cc43424788fa7a09290c900a661b0a710474cc71605233a2c8c21
+  languageName: node
+  linkType: hard
+
+"@autonoma-ai/sdk@patch:@autonoma-ai/sdk@npm%3A0.2.9#./.yarn/patches/@autonoma-ai-sdk-npm-0.2.9-79d1218947.patch::locator=calcom-monorepo%40workspace%3A.":
+  version: 0.2.9
+  resolution: "@autonoma-ai/sdk@patch:@autonoma-ai/sdk@npm%3A0.2.9#./.yarn/patches/@autonoma-ai-sdk-npm-0.2.9-79d1218947.patch::version=0.2.9&hash=a9604c&locator=calcom-monorepo%40workspace%3A."
+  peerDependencies:
+    zod: ^3.23.0 || ^4.0.0
+  checksum: 10/c01dcc11bd979ad00744dccc843fc47512caf35891a88332a57cddeaeb029df5a4281fb172fd0a8102510ccb6bcd83e3ebbbc0ab17c6b0ae66176dccdd0fc5e6
+  languageName: node
+  linkType: hard
+
+"@autonoma-ai/server-web@npm:0.2.9":
+  version: 0.2.9
+  resolution: "@autonoma-ai/server-web@npm:0.2.9"
+  dependencies:
+    "@autonoma-ai/sdk": "npm:0.2.9"
+  checksum: 10/830aebee5063d36ed563888338a273533af5bd3d29109967d1d1a5529d5963b6961ea34640bfc3b0fddbf05280ab598f23542e96f780365fea5e00631479e05b
+  languageName: node
+  linkType: hard
+
+"@autonoma-ai/server-web@patch:@autonoma-ai/server-web@npm%3A0.2.9#./.yarn/patches/@autonoma-ai-server-web-npm-0.2.9-c8834e4add.patch::locator=calcom-monorepo%40workspace%3A.":
+  version: 0.2.9
+  resolution: "@autonoma-ai/server-web@patch:@autonoma-ai/server-web@npm%3A0.2.9#./.yarn/patches/@autonoma-ai-server-web-npm-0.2.9-c8834e4add.patch::version=0.2.9&hash=440098&locator=calcom-monorepo%40workspace%3A."
+  dependencies:
+    "@autonoma-ai/sdk": "npm:0.2.9"
+  checksum: 10/c5d7bcee4a29768d95fd33c5468477761386e1df372cf692d3f9e75a21519bb7609400ace7b05802352cb23af8eb4ef8176f75eccd2419c593e4fa249cc222bd
+  languageName: node
+  linkType: hard
+
 "@aws-crypto/sha256-browser@npm:5.2.0":
   version: 5.2.0
   resolution: "@aws-crypto/sha256-browser@npm:5.2.0"
@@ -3300,6 +3336,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@calcom/web@workspace:apps/web"
   dependencies:
+    "@autonoma-ai/sdk": "npm:0.2.9"
+    "@autonoma-ai/server-web": "npm:0.2.9"
     "@babel/core": "npm:7.26.10"
     "@biomejs/biome": "npm:2.3.10"
     "@boxyhq/saml-jackson": "npm:1.52.2"
