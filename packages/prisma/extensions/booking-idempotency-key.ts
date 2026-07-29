@@ -29,7 +29,12 @@ export function bookingIdempotencyKeyExtension() {
             const idempotencyKey = generateIdempotencyKey({
               startTime: args.data.startTime,
               endTime: args.data.endTime,
-              userId: args.data.user?.connect?.id,
+              // Prisma accepts either shape here: a nested `user.connect` or the
+              // `userId` scalar. Reading only the former made every unchecked
+              // create hash the literal string "undefined", so two ACCEPTED
+              // bookings sharing a start/end time collided on
+              // Booking_idempotencyKey_key regardless of who they belonged to.
+              userId: args.data.user?.connect?.id ?? args.data.userId ?? undefined,
               reassignedById: args.data.reassignById,
             });
             args.data.idempotencyKey = idempotencyKey;
