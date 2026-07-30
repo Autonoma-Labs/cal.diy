@@ -25,7 +25,7 @@ import {
 } from "@calcom/prisma/enums";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
-import { compositeId, safeDelete, splitCompositeId, toJsonValue } from "../helpers";
+import { compositeId, createOrAdopt, safeDelete, splitCompositeId, toJsonValue } from "../helpers";
 
 /**
  * `PrismaAppRepository.seedApp` is the app store's own installer: it looks the
@@ -479,24 +479,30 @@ export const Deployment = defineFactory({
   }),
   create: async (data) => {
     const id = data.id ?? 1;
-    // Instance-level singleton: an existing deployment row belongs to the
-    // environment, not to this test run, so it is neither modified nor removed.
+    // Instance-level singleton: the deployment row belongs to the environment,
+    // not to this test run. Concurrent runs share one database and provision the
+    // same scenario, so seed it only if nobody has yet and adopt the winner when
+    // two runs insert at once.
     const existing = await prisma.deployment.findUnique({ where: { id } });
-    if (existing) return { id: existing.id, preexisting: true };
+    if (existing) return { id: existing.id };
 
-    const deployment = await prisma.deployment.create({
-      data: {
-        id,
-        licenseKey: data.licenseKey ?? undefined,
-        agreedLicenseAt: data.agreedLicenseAt ?? undefined,
-      },
-    });
-    return { id: deployment.id, preexisting: false };
+    return createOrAdopt(
+      () =>
+        prisma.deployment
+          .create({
+            data: {
+              id,
+              licenseKey: data.licenseKey ?? undefined,
+              agreedLicenseAt: data.agreedLicenseAt ?? undefined,
+            },
+          })
+          .then((deployment) => ({ id: deployment.id })),
+      async () => ({ id })
+    );
   },
-  teardown: async (record) => {
-    if (record.preexisting) return;
-    await safeDelete(() => prisma.deployment.delete({ where: { id: Number(record.id) } }));
-  },
+  // Deliberately no teardown: whoever seeded the row does not own it, and
+  // deleting it would pull the deployment out from under runs still using it.
+  teardown: async () => {},
 });
 
 export const CreditBalance = defineFactory({

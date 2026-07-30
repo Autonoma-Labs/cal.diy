@@ -15,6 +15,21 @@ export async function safeDelete(run: () => Promise<unknown>): Promise<void> {
 }
 
 /**
+ * Instance-level singletons live at a fixed id shared by every concurrent test
+ * run against one database, so looking the row up and then creating it is a
+ * check-then-act race: two runs both see nothing and the loser fails on P2002.
+ * Adopt whatever the winner inserted instead.
+ */
+export async function createOrAdopt<T>(create: () => Promise<T>, adopt: () => Promise<T>): Promise<T> {
+  try {
+    return await create();
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return adopt();
+    throw error;
+  }
+}
+
+/**
  * Composite-key models have no single-column id, but the SDK requires every
  * `create` to return an `id` it can round-trip through the refs token. We return
  * a joined string and split it back apart in teardown.
