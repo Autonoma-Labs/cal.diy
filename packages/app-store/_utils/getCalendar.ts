@@ -19,6 +19,16 @@ export const getCalendar = async (
   mode: CalendarFetchMode = "none"
 ): Promise<Calendar | null> => {
   if (!credential || !credential.key) return null;
+
+  // Preview and E2E environments seed calendar credentials but have no provider
+  // app keys, so the real service throws while loading them and every booking
+  // flow reads as "no availability". Opt in explicitly rather than inferring it
+  // from absent keys, so a genuine production misconfiguration still fails.
+  if (process.env.MOCK_CALENDAR_SERVICE === "1") {
+    const { MockCalendarService } = await import("./calendars/MockCalendarService");
+    return new MockCalendarService(credential);
+  }
+
   let { type: calendarType } = credential;
   if (calendarType?.endsWith("_other_calendar")) {
     calendarType = calendarType.split("_other_calendar")[0];
