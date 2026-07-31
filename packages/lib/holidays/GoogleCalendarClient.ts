@@ -33,18 +33,34 @@ export interface GoogleCalendarHoliday {
   year: number;
 }
 
-export class GoogleCalendarClient {
-  private apiKey: string;
+let hasWarnedAboutMissingKey = false;
 
+export class GoogleCalendarClient {
+  private apiKey: string | undefined;
+
+  /**
+   * A missing key degrades holiday lookups instead of throwing. It used to throw
+   * here, but this constructor runs eagerly from `getHolidayService()`, so every
+   * caller died on it - including `getSupportedCountries` and `getUserSettings`,
+   * which need no key of their own, and the availability calculation, which took
+   * booking down with it. Holidays enrich a schedule; they should not be able to
+   * break one.
+   */
   constructor(apiKey?: string) {
-    const key = apiKey || process.env.GOOGLE_CALENDAR_API_KEY;
-    if (!key) {
-      throw new Error("GOOGLE_CALENDAR_API_KEY environment variable is not set");
-    }
-    this.apiKey = key;
+    this.apiKey = apiKey || process.env.GOOGLE_CALENDAR_API_KEY;
   }
 
   async fetchHolidays(countryCode: string, year: number): Promise<GoogleCalendarHoliday[]> {
+    if (!this.apiKey) {
+      if (!hasWarnedAboutMissingKey) {
+        hasWarnedAboutMissingKey = true;
+        console.warn(
+          "GOOGLE_CALENDAR_API_KEY is not set - holiday lookups return nothing. Set it to enable holidays."
+        );
+      }
+      return [];
+    }
+
     const calendarConfig = GOOGLE_HOLIDAY_CALENDARS[countryCode];
     if (!calendarConfig) {
       return [];
