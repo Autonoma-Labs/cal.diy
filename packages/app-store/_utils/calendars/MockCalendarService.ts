@@ -13,6 +13,19 @@ import type { CredentialForCalendarService } from "@calcom/types/Credential";
 const log = logger.getSubLogger({ prefix: ["MockCalendarService"] });
 
 /**
+ * Announce the mock once per process at warn, the default visible level: an
+ * instance serving synthetic calendar data should say so out loud, and debug
+ * lines would be invisible under the default minLevel of 4 - which makes "the
+ * mock never ran" and "the mock ran silently" impossible to tell apart.
+ */
+let hasAnnounced = false;
+function announceOnce() {
+  if (hasAnnounced) return;
+  hasAnnounced = true;
+  log.warn("MOCK_CALENDAR_SERVICE is set - calendar availability and events are synthetic");
+}
+
+/**
  * Busy blocks the mock reports, expressed as offsets from the moment of the
  * request rather than absolute timestamps. Absolute dates would silently go
  * stale - once they fall into the past every slot reads as free and the mock
@@ -56,6 +69,7 @@ export class MockCalendarService implements Calendar {
   }
 
   async getAvailability({ dateFrom, dateTo }: GetAvailabilityParams): Promise<EventBusyDate[]> {
+    announceOnce();
     const now = new Date();
     const windowStart = new Date(dateFrom).valueOf();
     const windowEnd = new Date(dateTo).valueOf();
@@ -79,6 +93,7 @@ export class MockCalendarService implements Calendar {
   }
 
   async createEvent(event: CalendarServiceEvent, credentialId: number): Promise<NewCalendarEventType> {
+    announceOnce();
     const uid = event.uid ?? `mock-event-${credentialId}-${event.startTime}`;
     log.debug("createEvent handled by the mock calendar", { uid });
     return {
